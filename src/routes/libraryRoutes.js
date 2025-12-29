@@ -1,95 +1,54 @@
 const express = require('express');
 const router = express.Router();
+const LibraryMaterial = require('../models/LibraryMaterial');
+const multer = require('multer');
 
-// Mock library data (replace with database later)
-const libraryItems = [
-  {
-    id: 1,
-    title: 'Руководство по хирургии позвоночника',
-    author: 'Иванов И.И.',
-    year: 2023,
-    category: 'surgery',
-    description: 'Современные методы хирургического лечения'
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/'); // Make sure 'uploads' folder exists
   },
-  {
-    id: 2,
-    title: 'SSV Analysis in Spinal Surgery',
-    author: 'Smith J.',
-    year: 2024,
-    category: 'research',
-    description: 'Clinical applications of SSV measurement'
-  },
-  {
-    id: 3,
-    title: 'Нейрохирургия: Основы',
-    author: 'Петров П.П.',
-    year: 2022,
-    category: 'neurosurgery',
-    description: 'Фундаментальные принципы'
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
   }
-];
+});
+
+const upload = multer({ storage: storage });
 
 // @route   GET /api/library
-// @desc    Get all library items
+// @desc    Get all library materials
 // @access  Public
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    res.status(200).json({
-      success: true,
-      count: libraryItems.length,
-      data: libraryItems
-    });
+    const materials = await LibraryMaterial.find().sort({ uploadedAt: -1 });
+    res.json(materials);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Server Error'
-    });
+    res.status(500).json({ message: error.message });
   }
 });
 
-// @route   GET /api/library/:id
-// @desc    Get single library item
-// @access  Public
-router.get('/:id', (req, res) => {
+// @route   POST /api/library
+// @desc    Upload new library material
+// @access  Private (should add authentication)
+router.post('/', upload.single('file'), async (req, res) => {
   try {
-    const item = libraryItems.find(i => i.id === parseInt(req.params.id));
-    
-    if (!item) {
-      return res.status(404).json({
-        success: false,
-        error: 'Library item not found'
-      });
+    if (!req.file) {
+      return res.status(400).json({ message: 'File is required' });
     }
-    
-    res.status(200).json({
-      success: true,
-      data: item
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Server Error'
-    });
-  }
-});
 
-// @route   GET /api/library/category/:category
-// @desc    Get library items by category
-// @access  Public
-router.get('/category/:category', (req, res) => {
-  try {
-    const filtered = libraryItems.filter(i => i.category === req.params.category);
-    
-    res.status(200).json({
-      success: true,
-      count: filtered.length,
-      data: filtered
+    const material = new LibraryMaterial({
+      title: req.body.title,
+      author: req.body.author,
+      description: req.body.description,
+      category: req.body.category,
+      filePath: req.file.path, // Store the file path from multer
+      uploadedBy: req.body.uploadedBy
     });
+
+    const newMaterial = await material.save();
+    res.status(201).json(newMaterial);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Server Error'
-    });
+    res.status(400).json({ message: error.message });
   }
 });
 
