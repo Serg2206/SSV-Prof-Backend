@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const LibraryMaterial = require('../models/LibraryMaterial');
 const multer = require('multer');
+const authenticateToken = require('../middleware/auth');
+const { validateLibraryMaterial } = require('../middleware/validate');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -29,8 +31,7 @@ router.get('/', async (req, res) => {
 
 // @route   POST /api/library
 // @desc    Upload new library material
-// @access  Private (should add authentication)
-router.post('/', upload.single('file'), async (req, res) => {
+// @access Private (authenticated users only)router.post('/', authenticateToken, validateLibraryMaterial, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'File is required' });
