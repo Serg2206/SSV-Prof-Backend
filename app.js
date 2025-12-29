@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const connectDB = require('./src/config/db');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -30,6 +31,9 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' })); // JSON
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // form-data
 
+// --- Database Connection ---
+connectDB();
+
 // --- Routes ---
 
 // Health check
@@ -54,15 +58,6 @@ app.use('/api/consultation', consultationRoutes);
 app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route Not Found' });
 });
-
-// --- Database Connection ---
-
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => console.log('✅ Connected to MongoDB'))
-.catch(err => console.error('❌ MongoDB connection error:', err));
 
 // --- Server Start ---
 
