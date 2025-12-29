@@ -6,75 +6,69 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-// Security Middleware
+// --- Middleware ---
+
+// Security
 app.use(helmet());
 
-// Rate Limiting
+// Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100 // limit each IP to 100 requests per windowMs
 });
 app.use(limiter);
 
-// CORS
+// Cors (для github.io)
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+  origin: process.env.FRONTEND_URL || 'https://serg2206.github.io',
   credentials: true
 }));
 
-// Body Parser
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Body Parsing
+app.use(express.json({ limit: '10mb' })); // JSON
+app.use(express.urlencoded({ extended: true, limit: '10mb' })); // form-data
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ssv-prof', {
+// --- Routes ---
+
+// Health check
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    service: 'SSV-Prof Backend' 
+  });
+});
+
+// Import routes
+const libraryRoutes = require('./src/routes/libraryRoutes');
+const internshipRoutes = require('./src/routes/internshipRoutes');
+const consultationRoutes = require('./src/routes/consultationRoutes');
+
+// Use routes
+app.use('/api/library', libraryRoutes);
+app.use('/api/internship', internshipRoutes);
+app.use('/api/consultation', consultationRoutes);
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({ error: 'Route Not Found' });
+});
+
+// --- Database Connection ---
+
+mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 })
-.then(() => console.log('✅ MongoDB connected successfully'))
+.then(() => console.log('✅ Connected to MongoDB'))
 .catch(err => console.error('❌ MongoDB connection error:', err));
 
-// Routes
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'SSV-Prof-Backend API is running',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Import routes (will be created)
-// const patientRoutes = require('./src/routes/patientRoutes');
-// const analysisRoutes = require('./src/routes/analysisRoutes');
-// const mlRoutes = require('./src/routes/mlRoutes');
-
-// Use routes
-// app.use('/api/patients', patientRoutes);
-// app.use('/api/analysis', analysisRoutes);
-// app.use('/api/ml', mlRoutes);
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Error:', err.stack);
-  res.status(err.status || 500).json({
-    error: {
-      message: err.message || 'Internal Server Error',
-      status: err.status || 500
-    }
-  });
-});
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
-
-const PORT = process.env.PORT || 5000;
+// --- Server Start ---
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🚀 SSV-Prof Backend server running on port ${PORT}`);
+  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
 });
 
 module.exports = app;
